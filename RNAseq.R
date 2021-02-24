@@ -70,7 +70,7 @@ head(dge$genes)
 ####################
 
 ####expression matrix (use original df)
-ex <- subset(df, select=-c(ï..Ensembl.ID, Gene.type))
+ex <- subset(df, select=-c(?..Ensembl.ID, Gene.type))
 head(ex)
 
 #make genes the row names
@@ -292,8 +292,22 @@ gene_heatmap <- heatmap.2(gene_matrix, notecol = "black", density.info = "none",
                            Colv = NA, ylab = "Gene", xlab = "Sample")
 
 
+##Volcano plot
+
+# create dataframe with averages for OS and LS 
+write.csv(norm_df1,"data_raw\\data_norm.csv", row.names = FALSE)
+df_av <- read.csv("data_raw\\data_norm.csv")
+
+df_av <- df_av[-c(4:11)]
+df_av <- data.frame(df_av[1:3], stack(df_av[4:ncol(df_av)]))
+df_av <- rename(df_av, "expression" = "values", "flow" = "ind")
 
 
+diff_df <- df_av %>%
+  test_differential_abundance(.formula = ~ 0 + flow,
+                              .contrasts = c("flowOS" - "flowLS"),
+                              omit_contrast_in_colnames = TRUE
+                              )
 
 
 
