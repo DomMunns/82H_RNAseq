@@ -156,7 +156,7 @@ hist(stats[, "P.Value"])
 
 # volcano plot
 volcanoplot(fit2,
-            highlight = c("VCAM1", "CCL2", ),
+            highlight = c(),
             names = fit2$genes[, "SYMBOL"])
 
 ###########################################################
