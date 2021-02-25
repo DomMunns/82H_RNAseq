@@ -31,8 +31,7 @@ library(gplots)
 
 #read in static vs oss data
 df <- read.csv("data_raw/data_01rpm.csv")
-colnames(df)
-head(df)
+df <- rename(df, "Ensembl.ID" = "ï..Ensembl.ID")
 
 # Normalise the dataset
 norm_df <- normalizeBetweenArrays(df[,c(4:11)])
@@ -70,7 +69,7 @@ head(dge$genes)
 ####################
 
 ####expression matrix (use original df)
-ex <- subset(df, select=-c(?..Ensembl.ID, Gene.type))
+ex <- subset(df, select=-c(Ensembl.ID, Gene.type))
 head(ex)
 
 #make genes the row names
@@ -82,11 +81,6 @@ head(ex)
 ex.mat = as.matrix(as.data.frame(lapply(ex, as.numeric)))
 ex.mat <- ex.mat[-29153, ]
 
-#check transform has worked
-str(ex.mat)
-colnames(ex.mat)
-class(ex.mat)
-
 
 ####feature data (use DGEList)
 feat <- AnnotatedDataFrame(dge$genes)
@@ -97,24 +91,13 @@ feat <- feat[, -1]
 feat <- feat[-29153,]
 
 
-#check data frame worked
-colnames(feat)
-head(feat)
-class(feat)
-
-
-
 ####phenotype data (use DGEList)
 #add conditions
-dge$samples$condition <- c(rep("Oscillatory Shear Stres",4), rep("Laminar Shear Stress", 4))
+dge$samples$condition <- c(rep("Oscillatory",4), rep("Laminar", 4))
 
 pheno <- subset(dge$samples, select=-c(lib.size, norm.factors))
 
 pheno <- AnnotatedDataFrame(pheno)
-#check data frame worked
-head(pheno)
-colnames(pheno)
-class(pheno)
 
 
 ########################
@@ -125,14 +108,33 @@ eset <- ExpressionSet(assayData=ex.mat,
               phenoData = pheno,
               featureData = feat)
 
+#make the design matrix
+design <- model.matrix(~condition + 0, data = pData(eset))
+colSums(design)
+table(pData(eset)[, "condition"])
+
+# make contrast matrix
+cm <- makeContrasts(status = conditionLaminar - conditionOscillatory,
+                    levels = design)
+
+# fit the model
+fit <- lmFit(eset, design)
+
+fit2 <- contrasts.fit(fit, contrasts = cm)
+
+#calculate the t-statistics
+fit2 <- eBayes(fit2)
+
+#summarize results
+results <- decideTests(fit2)
+
+summary(results)
 
 #log transform
 exprs(eset) <- log(exprs(eset))
-plotDensities(eset, group = pData(eset)[, "condition"], legend = "topright")
 
 #Quantile normalise
 exprs(eset) <- normalizeBetweenArrays(exprs(eset))
-plotDensities(eset, group = pData(eset)[, "condition"], legend = "topright")
 
 #determine the genes with mean expression level greater than zero
 keep <- rowMeans(exprs(eset)) > 0
@@ -140,7 +142,18 @@ sum(keep)
 
 #filter the genes
 eset <- eset[keep, ]
-plotDensities(eset, group = pData(eset)[, "condition"], legend = "topright")
+
+#removeBatchEffect
+exprs(eset) <- removeBatchEffect(batch = pData(eset)[, ], 
+                                 covariates = pData(eset[, ]))
+#obtain results for all genes
+stats <- topTable(fit2, number = nrow(fit2), sort.by = "none")
+dim(stats)
+
+
+###########################################################
+
+####Box plots
 
 ###now to do the analysis for my genes (VCAM1 and CCL2)
 ###VCAM1
@@ -172,34 +185,6 @@ plotMDS(eset, labels = pData(eset)[, "condition"], gene.selection = "common")
 
 colnames(pData(eset))
 
-#make the design matrix
-design <- model.matrix(~condition, data = pData(eset))
-colSums(design)
-table(pData(eset)[, "condition"])
-
-
-################
-###limma time
-################
-#fit the model
-fit <- lmFit(eset, design)
-
-#calculate the t-statistics
-fit <- eBayes(fit)
-
-colnames(fit)
-
-#summarize results
-results <- decideTests(fit[, "conditionStatic Culture"])
-
-summary(results)
-#286 downregulated genes in static
-#22959 genes with no significant change between conditions
-#179 upregulated genes in static condition
-
-
-
-### Genes
 
 ###ADAM17
 #find row containing VCAM1
@@ -268,6 +253,8 @@ boxplot(exprs(eset)[XBP1, ] ~ pData(eset)[, "condition"],
         xlab="Stress Condition",
         ylab="Gene Expression")
 
+############################################################################
+
 ### Heat map
 # convert data frame into a matrix
 
@@ -291,6 +278,8 @@ gene_heatmap <- heatmap.2(gene_matrix, notecol = "black", density.info = "none",
                            trace = "none", margins = c(12,9), dendrogram = "row", 
                            Colv = NA, ylab = "Gene", xlab = "Sample")
 
+
+#######################################################################
 
 ##Volcano plot
 
