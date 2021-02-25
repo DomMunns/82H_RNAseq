@@ -135,6 +135,7 @@ exprs(eset) <- log(exprs(eset))
 
 #Quantile normalise
 exprs(eset) <- normalizeBetweenArrays(exprs(eset))
+plotDensities(eset, legend = FALSE)
 
 #determine the genes with mean expression level greater than zero
 keep <- rowMeans(exprs(eset)) > 0
@@ -143,13 +144,20 @@ sum(keep)
 #filter the genes
 eset <- eset[keep, ]
 
-#removeBatchEffect
-exprs(eset) <- removeBatchEffect(batch = pData(eset)[, ], 
-                                 covariates = pData(eset[, ]))
+#plot priniciple components labelled by condition to check for batch effect
+plotMDS(eset, labels = pData(eset)[, "condition"], gene.selection = "common")
+
 #obtain results for all genes
 stats <- topTable(fit2, number = nrow(fit2), sort.by = "none")
 dim(stats)
 
+# draw a histogram of p-values
+hist(stats[, "P.Value"])
+
+# volcano plot
+volcanoplot(fit2,
+            highlight = c("VCAM1", "CCL2", ),
+            names = fit2$genes[, "SYMBOL"])
 
 ###########################################################
 
@@ -177,14 +185,6 @@ boxplot(exprs(eset)[CCL2, ] ~ pData(eset)[, "condition"],
         main = fData(eset)[CCL2, "SYMBOL"],
         xlab="Stress Condition",
         ylab="Gene Expression")
-
-
-
-#plot priniciple components labelled by condition
-plotMDS(eset, labels = pData(eset)[, "condition"], gene.selection = "common")
-
-colnames(pData(eset))
-
 
 ###ADAM17
 #find row containing VCAM1
