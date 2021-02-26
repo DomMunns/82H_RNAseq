@@ -18,6 +18,7 @@ BiocManager::install("edgeR")
 BiocManager::install("Biobase")
 BiocManager::install("org.Hs.eg.db")
 BiocManager::install("airway")
+BiocManager::install("EnhancedVolcano")
 
 library(limma)
 library(edgeR)
@@ -28,6 +29,7 @@ library(tidyverse)
 library(tidybulk)
 library(ggplot2)
 library(gplots)
+library(EnhancedVolcano)
 
 #read in static vs oss data
 df <- read.csv("data_raw/data_01rpm.csv")
@@ -300,7 +302,10 @@ volcanoplot(fit2,
             names = fit2$genes[, "SYMBOL"])
 
 
-
+EnhancedVolcano(fit2,
+                lab = rownames(fit2$genes),
+                x = "Log2 Fold Change",
+                y = "P value")
 
 
 
